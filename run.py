@@ -13,7 +13,7 @@ ADMIN_USER = 'Yul2012'
 ADMIN_PASS = 'lam2922012'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SECRET_DIR = os.path.join(BASE_DIR, 'secret')
+SECRET_DIR = os.path.join('/tmp', 'secret')
 DB_PATH = os.path.join(SECRET_DIR, 'data.db')
 UPLOAD_DIR = os.path.join(BASE_DIR, 'static', 'uploads')
 os.makedirs(SECRET_DIR, exist_ok=True)
@@ -31,6 +31,7 @@ def init_db():
         c.execute("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, name TEXT, result TEXT, price REAL, description TEXT, image TEXT)")
         c.execute("CREATE TABLE IF NOT EXISTS purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, product_id INTEGER, price REAL)")
         c.execute("CREATE TABLE IF NOT EXISTS deposits (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount REAL, code TEXT, note TEXT, status TEXT DEFAULT 'pending')")
+        c.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
         
         try:
             c.execute("SELECT image FROM products LIMIT 1")
@@ -39,6 +40,10 @@ def init_db():
 
         if not c.execute("SELECT * FROM users WHERE username=?", (ADMIN_USER,)).fetchone():
             c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, 'admin')", (ADMIN_USER, generate_password_hash(ADMIN_PASS)))
+        
+        # Khoi tao anh QR mac dinh neu chua co
+        if not c.execute("SELECT * FROM settings WHERE key='qr_image'").fetchone():
+            c.execute("INSERT INTO settings (key, value) VALUES ('qr_image', 'default_qr.png')")
 
 init_db()
 
@@ -97,6 +102,10 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
 .result-box{background:#1e293b;padding:10px 12px;border-radius:6px;color:#60a5fa;font-family:monospace;font-size:13px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;display:block;width:100%;position:relative}
 .btn-copy{background:#10b981;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:12px;cursor:pointer;margin-top:6px;width:auto;float:right}
 .btn-copy:hover{background:#059669}
+
+.warning-box { background: #451a03; border: 1px solid #b45309; color: #fbbf24; padding: 15px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; line-height: 1.5; }
+.warning-box b { color: #f59e0b; }
+.warning-box code { background: #000; color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
 
 @media (max-width: 768px) {
     .topbar .search { display: none; }
@@ -272,15 +281,50 @@ def user_home():
 @app.route('/deposit', methods=['GET', 'POST'])
 @login_required
 def deposit():
+    with get_db() as c:
+        qr_row = c.execute("SELECT value FROM settings WHERE key='qr_image'").fetchone()
+        qr_image = qr_row['value'] if qr_row else 'default_qr.png'
+
     if request.method == 'POST':
         amount = float(request.form.get('amount', 0))
         code = str(random.randint(0, 999999)).zfill(6)
         note = f"NAP {code} {session['uname']}"
         with get_db() as c:
             c.execute("INSERT INTO deposits (user_id, amount, code, note) VALUES (?, ?, ?, ?)", (session['uid'], amount, code, note))
-        qr = f"https://img.vietqr.io/image/970422-0000000000-compact2.png?amount={int(amount)}&addInfo={note}"
-        return render_page(f"<h2>Nạp tiền</h2><div class='card' style='max-width:400px'><p>Mã giao dịch: <b style='color:#3b82f6;font-size:20px'>{code}</b></p><p>Nội dung CK: <code style='background:#1e293b;padding:4px 8px;border-radius:4px'>{note}</code></p><img src='{qr}' style='max-width:100%;border-radius:8px;margin-top:12px'> <a href='/user' style='text-align:center;margin-top:12px;color:#60a5fa;text-decoration:none'>Quay lại</a></div>")
-    return render_page("<h2>Nạp tiền</h2><form method='post' class='card' style='max-width:400px'><label>Số tiền muốn nạp (VNĐ):</label><input name='amount' type='number' min='10000' placeholder='VD: 50000' required><button style='margin-top:12px'>Tạo mã QR</button></form>")
+        
+        qr = f"/static/uploads/{qr_image}" 
+        
+        html = f"""
+        <h2>Nạp tiền</h2>
+        <div class='card' style='max-width:500px'>
+            <div class='warning-box'>
+                <p><b>⚠️ LƯU Ý QUAN TRỌNG:</b></p>
+                <p>- Vui lòng chuyển khoản <b>ĐÚNG SỐ TIỀN: {amount:,.0f} VNĐ</b>.</p>
+                <p>- Ghi đúng nội dung: <b>{note}</b></p>
+                <p>- Sau khi chuyển thành công, hãy nhắn tin qua Zalo: <b>0775531924</b> kèm theo <b>Mã giao dịch ({code})</b> và <b>Tên đăng nhập</b> để được duyệt tiền.</p>
+            </div>
+            
+            <div style='background:#1e293b;padding:16px;border-radius:8px;text-align:center;'>
+                <p style='color:#94a3b8;margin-bottom:8px'>Mã giao dịch của bạn:</p>
+                <p style='color:#3b82f6;font-size:24px;font-weight:bold;margin-bottom:16px'>{code}</p>
+                
+                <p style='color:#94a3b8;margin-bottom:8px'>Quét mã QR để chuyển khoản:</p>
+                <img src='{qr}' style='max-width:100%;border-radius:8px;border:2px solid #3b82f6'>
+                
+                <p style='margin-top:16px;'><a href='/user' style='color:#60a5fa;text-decoration:none'>Quay lại trang chủ</a></p>
+            </div>
+        </div>
+        """
+        return render_page(html)
+        
+    return render_page("""
+    <h2>Nạp tiền</h2>
+    <form method='post' class='card' style='max-width:400px'>
+        <label style='color:#94a3b8;font-size:14px;'>Số tiền muốn nạp (VNĐ):</label>
+        <input name='amount' type='number' min='10000' placeholder='VD: 50000' required>
+        <button style='margin-top:12px'>Tạo mã QR nạp tiền</button>
+    </form>
+    """)
 
 @app.route('/tools')
 @app.route('/tuts')
@@ -319,8 +363,6 @@ def product_detail(pid):
         p = c.execute("SELECT * FROM products WHERE id=?", (pid,)).fetchone()
         if not p:
             return redirect('/tools')
-        
-        # Kiem tra xem user da mua san pham nay chua
         purchased = c.execute("SELECT * FROM purchases WHERE user_id=? AND product_id=?", (session['uid'], pid)).fetchone()
     
     img_src = f"/static/uploads/{p['image']}" if p['image'] else "https://via.placeholder.com/600x400/1f2937/60a5fa?text=No+Image"
@@ -334,27 +376,22 @@ def product_detail(pid):
         <div style='flex:1;min-width:300px;'>
             <img src='{img_src}' style='width:100%;border-radius:12px;object-fit:cover;border:1px solid #1f2937;'>
         </div>
-        
         <div style='flex:1;min-width:300px;display:flex;flex-direction:column;gap:16px;'>
             <h1 style='color:#60a5fa;font-size:24px;margin:0;'>{p['name']}</h1>
-            
             <div style='background:#1e293b;padding:16px;border-radius:8px;'>
                 <p style='color:#94a3b8;font-size:13px;margin-bottom:4px;'>Giá bán:</p>
                 <p style='color:#10b981;font-size:28px;font-weight:700;margin:0;'>{p['price']:,.0f} VNĐ</p>
             </div>
-            
             <div>
                 <h3 style='margin:0 0 8px 0;font-size:16px;'>Mô tả sản phẩm</h3>
                 <p style='color:#cbd5e1;line-height:1.6;white-space:pre-wrap;'>{p['description']}</p>
             </div>
-            
             <div style='background:#111827;border:1px solid #3b82f6;padding:12px;border-radius:8px;'>
                 <p style='color:#60a5fa;font-size:14px;margin:0;font-weight:600;'>
                     📞 Hỗ trợ / Liên hệ Zalo: <span style='color:#10b981;'>0775531924</span>
                 </p>
             </div>
     """
-    
     if purchased:
         result_text = p['result'].replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
         html += f"""
@@ -372,11 +409,7 @@ def product_detail(pid):
                 <button style='width:100%;padding:16px;font-size:16px;margin-top:8px;'>Mua ngay</button>
             </form>
         """
-        
-    html += """
-        </div>
-    </div>
-    """
+    html += "</div></div>"
     return render_page(html)
 
 @app.route('/buy/<int:pid>', methods=['POST'])
@@ -385,7 +418,6 @@ def buy(pid):
     with get_db() as c:
         p = c.execute("SELECT * FROM products WHERE id=?", (pid,)).fetchone()
         u = c.execute("SELECT * FROM users WHERE id=?", (session['uid'],)).fetchone()
-        
         if u['role'] == 'admin' or u['balance'] >= p['price']:
             if u['role'] != 'admin':
                 c.execute("UPDATE users SET balance = balance - ? WHERE id=?", (p['price'], u['id']))
@@ -397,17 +429,26 @@ def buy(pid):
 @admin_required
 def admin_home():
     if request.method == 'POST':
+        # Xu ly Upload QR
+        if 'qr_image' in request.files:
+            image = request.files.get('qr_image')
+            if image and image.filename != '':
+                img_filename = secure_filename(image.filename)
+                image.save(os.path.join(app.config['UPLOAD_FOLDER'], img_filename))
+                with get_db() as c:
+                    c.execute("UPDATE settings SET value=? WHERE key='qr_image'", (img_filename,))
+            return redirect('/admin')
+            
+        # Xu ly Them San Pham
         kind = request.form.get('kind')
         name = request.form.get('name', '')
         if not name.endswith(f".{kind}"):
             return redirect('/admin?err=name')
-            
         image = request.files.get('image')
         img_filename = ''
         if image and image.filename != '':
             img_filename = secure_filename(image.filename)
             image.save(os.path.join(app.config['UPLOAD_FOLDER'], img_filename))
-
         with get_db() as c:
             c.execute("INSERT INTO products (kind, name, price, description, result, image) VALUES (?, ?, ?, ?, ?, ?)",
                       (kind, name, float(request.form.get('price', 0)), request.form.get('desc'), request.form.get('result'), img_filename))
@@ -417,12 +458,27 @@ def admin_home():
         users = c.execute("SELECT * FROM users WHERE role='user'").fetchall()
         prods = c.execute("SELECT * FROM products").fetchall()
         deps = c.execute("SELECT d.*, u.username FROM deposits d JOIN users u ON u.id=d.user_id WHERE status='pending'").fetchall()
+        qr_row = c.execute("SELECT value FROM settings WHERE key='qr_image'").fetchone()
+        current_qr = qr_row['value'] if qr_row else ''
     
     html = "<div>"
     html += "<h2>Bảng điều khiển quản trị</h2>"
+    
+    # Form cap nhat QR
+    html += f"""
+    <h3>Cấu hình thanh toán (QR)</h3>
+    <form method='post' class='card' enctype='multipart/form-data'>
+        <p style='color:#94a3b8;font-size:14px;'>Ảnh QR hiện tại:</p>
+        <img src='/static/uploads/{current_qr}' style='max-width:200px;border-radius:8px;border:1px solid #3b82f6;'>
+        <label style='color:#94a3b8;font-size:13px;margin-top:8px;'>Thay đổi ảnh QR mới:</label>
+        <input type='file' name='qr_image' accept='image/*' style='background:transparent;border:none;padding:0'>
+        <button type='submit' style='margin-top:8px;background:#10b981;'>Cập nhật ảnh QR</button>
+    </form>
+    """
+    
     if request.args.get('err') == 'name': 
         html += "<p class='err'>Lỗi: Tên phải kết thúc bằng .tool hoặc .tut</p>"
-    
+        
     html += """
     <h3>Thêm sản phẩm mới</h3>
     <form method='post' class='card' enctype='multipart/form-data'>
