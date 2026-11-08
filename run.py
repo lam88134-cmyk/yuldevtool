@@ -13,7 +13,7 @@ ADMIN_USER = 'Yul2012'
 ADMIN_PASS = 'lam2922012'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SECRET_DIR = os.path.join('/tmp', 'secret')
+SECRET_DIR = os.path.join('/tmp', 'secret')  # Su dung /tmp cho Render
 DB_PATH = os.path.join(SECRET_DIR, 'data.db')
 UPLOAD_DIR = os.path.join(BASE_DIR, 'static', 'uploads')
 os.makedirs(SECRET_DIR, exist_ok=True)
@@ -41,7 +41,6 @@ def init_db():
         if not c.execute("SELECT * FROM users WHERE username=?", (ADMIN_USER,)).fetchone():
             c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, 'admin')", (ADMIN_USER, generate_password_hash(ADMIN_PASS)))
         
-        # Khoi tao anh QR mac dinh neu chua co
         if not c.execute("SELECT * FROM settings WHERE key='qr_image'").fetchone():
             c.execute("INSERT INTO settings (key, value) VALUES ('qr_image', 'default_qr.png')")
 
@@ -108,10 +107,16 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
 .warning-box code { background: #000; color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
 
 @media (max-width: 768px) {
+    .topbar { padding: 0 10px; gap: 10px; }
     .topbar .search { display: none; }
-    .topbar { justify-content: space-between; }
-    .sidebar { display: none; }
-    main, main.with-sidebar { margin-left: 0; padding: 16px; max-width: 100%; }
+    .sidebar { 
+        position: fixed; top: 60px; left: 0; width: 100%; height: auto; 
+        flex-direction: row; overflow-x: auto; padding: 10px; 
+        border-right: none; border-bottom: 1px solid #1f2937; z-index: 90;
+    }
+    .sidebar h4 { display: none; }
+    .sidebar a { padding: 8px 12px; font-size: 13px; white-space: nowrap; margin-bottom: 0; }
+    main, main.with-sidebar { margin-left: 0; margin-top: 50px; padding: 16px; max-width: 100%; }
     .banner { padding: 20px; }
     .banner h1 { font-size: 20px; }
     table, thead, tbody, th, td, tr { display: block; }
@@ -121,6 +126,7 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
     td:before { position: absolute; top: 12px; left: 16px; width: 45%; padding-right: 10px; white-space: nowrap; text-align: left; font-weight: 600; color: #94a3b8; content: attr(data-label); }
     td:last-child { border-bottom: 0; }
     .auth-box { padding: 24px; }
+    .card { padding: 16px; }
 }
 </style>
 </head>
@@ -145,14 +151,12 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
 <div class="layout">
     {% if session.get('uid') %}
     <aside class="sidebar">
-        <h4>Danh mục chính</h4>
         <a href="/user">🏠 Trang chủ</a>
         <a href="/deposit">💰 Nạp tiền</a>
         <a href="/tools">🛠 Tool</a>
         <a href="/tuts">📚 Tut</a>
         {% if session.get('role')=='admin' %}
-        <h4>Quản trị viên</h4>
-        <a href="/admin" style="color:#60a5fa">⚙️ Quản lý hệ thống</a>
+        <a href="/admin" style="color:#60a5fa">⚙️ Quản trị</a>
         {% endif %}
     </aside>
     <main class="with-sidebar">{{ content|safe }}</main>
@@ -301,7 +305,7 @@ def deposit():
                 <p><b>⚠️ LƯU Ý QUAN TRỌNG:</b></p>
                 <p>- Vui lòng chuyển khoản <b>ĐÚNG SỐ TIỀN: {amount:,.0f} VNĐ</b>.</p>
                 <p>- Ghi đúng nội dung: <b>{note}</b></p>
-                <p>- Sau khi chuyển thành công, hãy nhắn tin qua Zalo: <b>0775531924</b> kèm theo <b>Mã giao dịch ({code})</b> và <b>Tên đăng nhập</b> để được duyệt tiền.</p>
+                <p>- Sau khi chuyển khoản thành công, hãy nhắn tin qua Zalo: <b>0775531924</b> kèm theo <b>Mã giao dịch ({code})</b> và <b>Tên đăng nhập</b> để được duyệt tiền nhanh nhất.</p>
             </div>
             
             <div style='background:#1e293b;padding:16px;border-radius:8px;text-align:center;'>
@@ -429,7 +433,6 @@ def buy(pid):
 @admin_required
 def admin_home():
     if request.method == 'POST':
-        # Xu ly Upload QR
         if 'qr_image' in request.files:
             image = request.files.get('qr_image')
             if image and image.filename != '':
@@ -439,7 +442,6 @@ def admin_home():
                     c.execute("UPDATE settings SET value=? WHERE key='qr_image'", (img_filename,))
             return redirect('/admin')
             
-        # Xu ly Them San Pham
         kind = request.form.get('kind')
         name = request.form.get('name', '')
         if not name.endswith(f".{kind}"):
@@ -464,7 +466,6 @@ def admin_home():
     html = "<div>"
     html += "<h2>Bảng điều khiển quản trị</h2>"
     
-    # Form cap nhat QR
     html += f"""
     <h3>Cấu hình thanh toán (QR)</h3>
     <form method='post' class='card' enctype='multipart/form-data'>
