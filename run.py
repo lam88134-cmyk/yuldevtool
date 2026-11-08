@@ -62,17 +62,22 @@ body{background:#0a0e17;color:#e2e8f0;display:flex;flex-direction:column;min-hei
 .topbar .logo{font-weight:700;color:#3b82f6;font-size:20px;text-transform:uppercase;letter-spacing:1px}
 .topbar .search{flex:1;max-width:400px;background:#1f2937;border-radius:20px;padding:8px 16px;display:flex;align-items:center}
 .topbar .search input{background:transparent;border:none;color:#fff;outline:none;width:100%;margin-left:8px}
-.topbar .actions{display:flex;gap:12px;margin-left:auto}
+.topbar .actions{display:flex;gap:12px;margin-left:auto;align-items:center}
 .topbar .actions button{background:#1f2937;color:#cbd5e1;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer}
 .topbar .actions button:hover{background:#374151}
+.menu-toggle{display:none;font-size:24px;color:#fff;background:transparent;border:none;cursor:pointer;padding:0 10px 0 0}
+
 .layout{display:flex;margin-top:60px;min-height:calc(100vh - 60px);width:100%}
-.sidebar{width:240px;background:#111827;padding:20px 12px;border-right:1px solid #1f2937;position:fixed;left:0;top:60px;height:calc(100vh - 60px);overflow-y:auto}
+.sidebar{width:240px;background:#111827;padding:20px 12px;border-right:1px solid #1f2937;position:fixed;left:0;top:60px;height:calc(100vh - 60px);overflow-y:auto;transition:transform 0.3s ease;z-index:99}
 .sidebar h4{color:#64748b;font-size:12px;text-transform:uppercase;margin:16px 0 8px 12px;letter-spacing:1px}
 .sidebar a{display:flex;align-items:center;color:#94a3b8;text-decoration:none;padding:10px 12px;border-radius:8px;font-size:14px;margin-bottom:4px;transition:0.2s}
 .sidebar a:hover,.sidebar a.active{background:#1e3a8a;color:#60a5fa}
+.overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:98}
+
 main{padding:24px;width:100%;max-width:1000px;flex:1}
 main.with-sidebar{margin-left:240px;max-width:calc(1000px + 240px)}
 main.auth-main{display:flex;justify-content:center;align-items:center;min-height:calc(100vh - 60px);padding:20px;max-width:100%;margin:0 auto}
+
 .banner{background:linear-gradient(135deg, #1e1b4b, #0f172a);border:1px solid #312e81;border-radius:16px;padding:32px;margin-bottom:24px;position:relative;overflow:hidden}
 .banner::before{content:'';position:absolute;top:-50%;right:-10%;width:300px;height:300px;background:#3b82f6;filter:blur(100px);opacity:0.2;border-radius:50%}
 .banner h1{font-size:24px;color:#fff;margin-bottom:12px;position:relative;z-index:1}
@@ -107,18 +112,17 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
 .warning-box code { background: #000; color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
 
 @media (max-width: 768px) {
-    .topbar { padding: 0 10px; gap: 10px; }
+    .topbar { padding: 0 15px; gap: 10px; }
     .topbar .search { display: none; }
-    .sidebar { 
-        position: fixed; top: 60px; left: 0; width: 100%; height: auto; 
-        flex-direction: row; overflow-x: auto; padding: 10px; 
-        border-right: none; border-bottom: 1px solid #1f2937; z-index: 90;
-    }
-    .sidebar h4 { display: none; }
-    .sidebar a { padding: 8px 12px; font-size: 13px; white-space: nowrap; margin-bottom: 0; }
-    main, main.with-sidebar { margin-left: 0; margin-top: 50px; padding: 16px; max-width: 100%; }
+    .menu-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); width: 250px; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+    .sidebar.open { transform: translateX(0); }
+    .overlay.open { display: block; }
+    main, main.with-sidebar { margin-left: 0; padding: 16px; max-width: 100%; }
+    
     .banner { padding: 20px; }
     .banner h1 { font-size: 20px; }
+    
     table, thead, tbody, th, td, tr { display: block; }
     thead tr { position: absolute; top: -9999px; left: -9999px; }
     tr { border: 1px solid #1f2937; margin-bottom: 12px; border-radius: 8px; background: #111827; }
@@ -132,6 +136,9 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
 </head>
 <body>
 <div class="topbar">
+    {% if session.get('uid') %}
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+    {% endif %}
     <div class="logo">YulDevTool</div>
     <div class="search">
         <span style="color:#64748b">🔍</span>
@@ -139,7 +146,7 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
     </div>
     <div class="actions">
         {% if session.get('uid') %}
-        <span style="color:#94a3b8;font-size:14px;display:flex;align-items:center;margin-right:8px">Chào, {{ session.get('uname') }}</span>
+        <span style="color:#94a3b8;font-size:14px;display:none;align-items:center;margin-right:8px" class="greeting">Chào, {{ session.get('uname') }}</span>
         <a href="/logout" style="text-decoration:none"><button style="background:#ef444422;color:#ef4444">Đăng xuất</button></a>
         {% else %}
         <a href="/login" style="text-decoration:none"><button>Đăng nhập</button></a>
@@ -148,15 +155,19 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
     </div>
 </div>
 
+<div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
 <div class="layout">
     {% if session.get('uid') %}
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
+        <h4>Danh mục chính</h4>
         <a href="/user">🏠 Trang chủ</a>
         <a href="/deposit">💰 Nạp tiền</a>
         <a href="/tools">🛠 Tool</a>
         <a href="/tuts">📚 Tut</a>
         {% if session.get('role')=='admin' %}
-        <a href="/admin" style="color:#60a5fa">⚙️ Quản trị</a>
+        <h4>Quản trị viên</h4>
+        <a href="/admin" style="color:#60a5fa">⚙️ Quản lý hệ thống</a>
         {% endif %}
     </aside>
     <main class="with-sidebar">{{ content|safe }}</main>
@@ -166,6 +177,10 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
 </div>
 
 <script>
+function toggleMenu() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('overlay').classList.toggle('open');
+}
 function copyText(btn, text) {
     navigator.clipboard.writeText(text).then(() => {
         let oldText = btn.innerText;
