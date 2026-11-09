@@ -11,9 +11,10 @@ app.secret_key = 'yuldevtool_bi_mat_2026'
 
 ADMIN_USER = 'Yul2012'
 ADMIN_PASS = 'lam2922012'
+ADMIN_PIN = '752012'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SECRET_DIR = os.path.join('/tmp', 'secret')  # Su dung /tmp cho Render
+SECRET_DIR = os.path.join('/tmp', 'secret')
 DB_PATH = os.path.join(SECRET_DIR, 'data.db')
 UPLOAD_DIR = os.path.join(BASE_DIR, 'static', 'uploads')
 os.makedirs(SECRET_DIR, exist_ok=True)
@@ -29,8 +30,9 @@ def init_db():
     with get_db() as c:
         c.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', balance REAL DEFAULT 0)")
         c.execute("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, name TEXT, result TEXT, price REAL, description TEXT, image TEXT)")
-        c.execute("CREATE TABLE IF NOT EXISTS purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, product_id INTEGER, price REAL)")
-        c.execute("CREATE TABLE IF NOT EXISTS deposits (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount REAL, code TEXT, note TEXT, status TEXT DEFAULT 'pending')")
+        c.execute("CREATE TABLE IF NOT EXISTS purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, product_id INTEGER, price REAL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        c.execute("CREATE TABLE IF NOT EXISTS cards (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount REAL, telco TEXT, code TEXT, serial TEXT, status TEXT DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        c.execute("CREATE TABLE IF NOT EXISTS deposits (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount REAL, code TEXT, note TEXT, status TEXT DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         c.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
         
         try:
@@ -65,6 +67,7 @@ body{background:#0a0e17;color:#e2e8f0;display:flex;flex-direction:column;min-hei
 .topbar .actions{display:flex;gap:12px;margin-left:auto;align-items:center}
 .topbar .actions button{background:#1f2937;color:#cbd5e1;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer}
 .topbar .actions button:hover{background:#374151}
+
 .menu-toggle{display:none;font-size:24px;color:#fff;background:transparent;border:none;cursor:pointer;padding:0 10px 0 0}
 
 .layout{display:flex;margin-top:60px;min-height:calc(100vh - 60px);width:100%}
@@ -72,6 +75,7 @@ body{background:#0a0e17;color:#e2e8f0;display:flex;flex-direction:column;min-hei
 .sidebar h4{color:#64748b;font-size:12px;text-transform:uppercase;margin:16px 0 8px 12px;letter-spacing:1px}
 .sidebar a{display:flex;align-items:center;color:#94a3b8;text-decoration:none;padding:10px 12px;border-radius:8px;font-size:14px;margin-bottom:4px;transition:0.2s}
 .sidebar a:hover,.sidebar a.active{background:#1e3a8a;color:#60a5fa}
+
 .overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:98}
 
 main{padding:24px;width:100%;max-width:1000px;flex:1}
@@ -100,16 +104,16 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
 .err{color:#ef4444;font-size:14px;background:#ef444422;padding:10px;border-radius:8px;border:1px solid #ef444444;margin-bottom:12px}.ok{color:#10b981}
 .auth-box{width:100%;max-width:400px;background:#111827;padding:32px;border-radius:16px;border:1px solid #1f2937;box-shadow:0 10px 25px rgba(0,0,0,0.5);margin:0 auto}
 .auth-box h2{text-align:center;margin-bottom:24px;color:#3b82f6;border:none}
-
 .product-img{width:100%;height:150px;object-fit:cover;border-radius:8px;margin-bottom:12px;background:#1f2937}
-
-.result-box{background:#1e293b;padding:10px 12px;border-radius:6px;color:#60a5fa;font-family:monospace;font-size:13px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;display:block;width:100%;position:relative}
-.btn-copy{background:#10b981;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:12px;cursor:pointer;margin-top:6px;width:auto;float:right}
+.result-box{background:#1e293b;padding:10px 12px;border-radius:6px;color:#60a5fa;font-family:monospace;font-size:14px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;display:block;width:100%;position:relative}
+.btn-copy{background:#10b981;color:#fff;border:none;padding:8px 16px;border-radius:4px;font-size:14px;cursor:pointer;margin-bottom:10px;width:100%;font-weight:bold;}
 .btn-copy:hover{background:#059669}
-
 .warning-box { background: #451a03; border: 1px solid #b45309; color: #fbbf24; padding: 15px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; line-height: 1.5; }
 .warning-box b { color: #f59e0b; }
 .warning-box code { background: #000; color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+.tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #1f2937; padding-bottom: 10px; }
+.tabs a { padding: 10px 20px; text-decoration: none; color: #94a3b8; border-radius: 8px; font-weight: 600; }
+.tabs a.active { background: #3b82f6; color: white; }
 
 @media (max-width: 768px) {
     .topbar { padding: 0 15px; gap: 10px; }
@@ -119,10 +123,8 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
     .sidebar.open { transform: translateX(0); }
     .overlay.open { display: block; }
     main, main.with-sidebar { margin-left: 0; padding: 16px; max-width: 100%; }
-    
     .banner { padding: 20px; }
     .banner h1 { font-size: 20px; }
-    
     table, thead, tbody, th, td, tr { display: block; }
     thead tr { position: absolute; top: -9999px; left: -9999px; }
     tr { border: 1px solid #1f2937; margin-bottom: 12px; border-radius: 8px; background: #111827; }
@@ -146,7 +148,7 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
     </div>
     <div class="actions">
         {% if session.get('uid') %}
-        <span style="color:#94a3b8;font-size:14px;display:none;align-items:center;margin-right:8px" class="greeting">Chào, {{ session.get('uname') }}</span>
+        <span style="color:#94a3b8;font-size:14px;display:flex;align-items:center;margin-right:8px">Chào, {{ session.get('uname') }}</span>
         <a href="/logout" style="text-decoration:none"><button style="background:#ef444422;color:#ef4444">Đăng xuất</button></a>
         {% else %}
         <a href="/login" style="text-decoration:none"><button>Đăng nhập</button></a>
@@ -165,9 +167,11 @@ th{background:#1e293b;color:#94a3b8;font-weight:600;font-size:13px}
         <a href="/deposit">💰 Nạp tiền</a>
         <a href="/tools">🛠 Tool</a>
         <a href="/tuts">📚 Tut</a>
+        <a href="/history">🧾 Lịch sử</a>
         {% if session.get('role')=='admin' %}
         <h4>Quản trị viên</h4>
         <a href="/admin" style="color:#60a5fa">⚙️ Quản lý hệ thống</a>
+        <a href="/admin_users" style="color:#60a5fa">👥 Quản lý User</a>
         {% endif %}
     </aside>
     <main class="with-sidebar">{{ content|safe }}</main>
@@ -192,6 +196,11 @@ function copyText(btn, text) {
         }, 2000);
     }).catch(err => { alert("Lỗi khi sao chép!"); });
 }
+function togglePassword(inputId, icon) {
+    var x = document.getElementById(inputId);
+    if (x.type === "password") { x.type = "text"; icon.innerText = "🙈"; } 
+    else { x.type = "password"; icon.innerText = "👁️"; }
+}
 </script>
 </body>
 </html>
@@ -211,6 +220,7 @@ def admin_required(f):
     @wraps(f)
     def w(*a, **k):
         if session.get('role') != 'admin': return redirect('/login')
+        if not session.get('admin_verified'): return redirect('/pin')
         return f(*a, **k)
     return w
 
@@ -231,22 +241,42 @@ def login():
             session['uid'] = row['id']
             session['uname'] = row['username']
             session['role'] = row['role']
-            return redirect('/admin' if row['role']=='admin' else '/user')
-        return render_page("<div class='auth-box'><h2>Đăng nhập</h2><p class='err'>Sai tên hoặc mật khẩu!</p><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='u' placeholder='Tên đăng nhập' required><input name='p' type='password' placeholder='Mật khẩu' required><button>Đăng nhập</button></form><p style='text-align:center;margin-top:16px;font-size:14px;color:#94a3b8'>Chưa có tài khoản? <a href='/register' style='color:#3b82f6;text-decoration:none'>Đăng ký ngay</a></p></div>")
-    return render_page("<div class='auth-box'><h2>Đăng nhập</h2><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='u' placeholder='Tên đăng nhập' required><input name='p' type='password' placeholder='Mật khẩu' required><button>Đăng nhập</button></form><p style='text-align:center;margin-top:16px;font-size:14px;color:#94a3b8'>Chưa có tài khoản? <a href='/register' style='color:#3b82f6;text-decoration:none'>Đăng ký ngay</a></p></div>")
+            if row['role'] == 'admin':
+                session['admin_verified'] = False
+                return redirect('/pin')
+            return redirect('/user')
+        return render_page("<div class='auth-box'><h2>Đăng nhập</h2><p class='err'>Sai tên hoặc mật khẩu!</p><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='u' placeholder='Tên đăng nhập' required><div style='position:relative'><input name='p' id='pwd_login' type='password' placeholder='Mật khẩu' required style='padding-right:40px'><span onclick=\"togglePassword('pwd_login', this)\" style='position:absolute;right:10px;top:12px;cursor:pointer'>👁️</span></div><button>Đăng nhập</button></form><p style='text-align:center;margin-top:16px;font-size:14px;color:#94a3b8'>Chưa có tài khoản? <a href='/register' style='color:#3b82f6;text-decoration:none'>Đăng ký ngay</a></p></div>")
+    return render_page("<div class='auth-box'><h2>Đăng nhập</h2><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='u' placeholder='Tên đăng nhập' required><div style='position:relative'><input name='p' id='pwd_login' type='password' placeholder='Mật khẩu' required style='padding-right:40px'><span onclick=\"togglePassword('pwd_login', this)\" style='position:absolute;right:10px;top:12px;cursor:pointer'>👁️</span></div><button>Đăng nhập</button></form><p style='text-align:center;margin-top:16px;font-size:14px;color:#94a3b8'>Chưa có tài khoản? <a href='/register' style='color:#3b82f6;text-decoration:none'>Đăng ký ngay</a></p></div>")
+
+@app.route('/pin', methods=['GET', 'POST'])
+def pin():
+    if session.get('role') != 'admin': return redirect('/login')
+    if session.get('admin_verified'): return redirect('/admin')
+    
+    if request.method == 'POST':
+        p = request.form.get('pin')
+        if p == ADMIN_PIN:
+            session['admin_verified'] = True
+            return redirect('/admin')
+        return render_page("<div class='auth-box'><h2>Xác thực Admin</h2><p class='err'>Mã PIN không đúng!</p><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='pin' type='password' placeholder='Nhập mã PIN' required><button>Xác nhận</button></form></div>")
+    
+    return render_page("<div class='auth-box'><h2>Xác thực Admin</h2><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='pin' type='password' placeholder='Nhập mã PIN' required><button>Xác nhận</button></form></div>")
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         u, p = request.form.get('u'), request.form.get('p')
+        agree = request.form.get('agree')
+        if not agree:
+            return render_page("<div class='auth-box'><h2>Đăng ký</h2><p class='err'>Bạn phải đồng ý điều khoản!</p><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='u' placeholder='Tên đăng nhập' required><div style='position:relative'><input name='p' id='pwd_reg' type='password' placeholder='Mật khẩu' required style='padding-right:40px'><span onclick=\"togglePassword('pwd_reg', this)\" style='position:absolute;right:10px;top:12px;cursor:pointer'>👁️</span></div><label style='color:#94a3b8;font-size:13px;display:flex;align-items:center;gap:8px'><input type='checkbox' name='agree' style='width:auto;margin:0'> Đồng ý điều khoản</label><button>Đăng ký</button></form></div>")
         if u.lower() == ADMIN_USER.lower(): return "Tên này không được phép sử dụng."
         try:
             with get_db() as c:
                 c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (u, generate_password_hash(p)))
             return redirect('/login')
         except:
-            return render_page("<div class='auth-box'><h2>Đăng ký</h2><p class='err'>Tên đăng nhập đã tồn tại!</p><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='u' placeholder='Tên đăng nhập' required><input name='p' type='password' placeholder='Mật khẩu' required><button>Đăng ký</button></form><p style='text-align:center;margin-top:16px;font-size:14px;color:#94a3b8'>Đã có tài khoản? <a href='/login' style='color:#3b82f6;text-decoration:none'>Đăng nhập</a></p></div>")
-    return render_page("<div class='auth-box'><h2>Đăng ký</h2><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='u' placeholder='Tên đăng nhập' required><input name='p' type='password' placeholder='Mật khẩu' required><button>Đăng ký</button></form><p style='text-align:center;margin-top:16px;font-size:14px;color:#94a3b8'>Đã có tài khoản? <a href='/login' style='color:#3b82f6;text-decoration:none'>Đăng nhập</a></p></div>")
+            return render_page("<div class='auth-box'><h2>Đăng ký</h2><p class='err'>Tên đăng nhập đã tồn tại!</p><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='u' placeholder='Tên đăng nhập' required><div style='position:relative'><input name='p' id='pwd_reg' type='password' placeholder='Mật khẩu' required style='padding-right:40px'><span onclick=\"togglePassword('pwd_reg', this)\" style='position:absolute;right:10px;top:12px;cursor:pointer'>👁️</span></div><label style='color:#94a3b8;font-size:13px;display:flex;align-items:center;gap:8px'><input type='checkbox' name='agree' style='width:auto;margin:0'> Đồng ý điều khoản</label><button>Đăng ký</button></form></div>")
+    return render_page("<div class='auth-box'><h2>Đăng ký</h2><form method='post' style='display:flex;flex-direction:column;gap:12px'><input name='u' placeholder='Tên đăng nhập' required><div style='position:relative'><input name='p' id='pwd_reg' type='password' placeholder='Mật khẩu' required style='padding-right:40px'><span onclick=\"togglePassword('pwd_reg', this)\" style='position:absolute;right:10px;top:12px;cursor:pointer'>👁️</span></div><label style='color:#94a3b8;font-size:13px;display:flex;align-items:center;gap:8px'><input type='checkbox' name='agree' style='width:auto;margin:0'> Đồng ý điều khoản</label><button>Đăng ký</button></form></div>")
 
 @app.route('/logout')
 def logout():
@@ -276,20 +306,17 @@ def user_home():
     """
     html += "<h2>Sản phẩm đã mua</h2>"
     if purchases:
-        html += "<table><thead><tr><th>Tên</th><th>Giá</th><th>Kết quả / Link tải</th></tr></thead><tbody>"
+        html += "<table><thead><tr><th style='width:30%'>Tên sản phẩm</th><th>Kết quả / Link tải</th></tr></thead><tbody>"
         for p in purchases:
             prod = pmap.get(p['product_id'])
             if prod: 
                 result_text = prod['result'].replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
                 html += f"""
                 <tr>
-                    <td data-label='Tên'><b>{prod['name']}</b></td>
-                    <td data-label='Giá'>{p['price']:,.0f}đ</td>
+                    <td data-label='Tên sản phẩm'><b>{prod['name']}</b></td>
                     <td data-label='Kết quả'>
-                        <div class='result-box'>
-                            {prod['result']}
-                            <button class='btn-copy' onclick="copyText(this, '{result_text}')">Sao chép</button>
-                        </div>
+                        <button class='btn-copy' onclick="copyText(this, '{result_text}')">Sao chép kết quả</button>
+                        <div class='result-box'>{prod['result']}</div>
                     </td>
                 </tr>
                 """
@@ -300,50 +327,148 @@ def user_home():
 @app.route('/deposit', methods=['GET', 'POST'])
 @login_required
 def deposit():
+    tab = request.args.get('tab', 'bank')
+    
     with get_db() as c:
         qr_row = c.execute("SELECT value FROM settings WHERE key='qr_image'").fetchone()
         qr_image = qr_row['value'] if qr_row else 'default_qr.png'
 
     if request.method == 'POST':
+        method = request.form.get('method')
         amount = float(request.form.get('amount', 0))
-        code = str(random.randint(0, 999999)).zfill(6)
-        note = f"NAP {code} {session['uname']}"
-        with get_db() as c:
-            c.execute("INSERT INTO deposits (user_id, amount, code, note) VALUES (?, ?, ?, ?)", (session['uid'], amount, code, note))
         
-        qr = f"/static/uploads/{qr_image}" 
-        
-        html = f"""
-        <h2>Nạp tiền</h2>
-        <div class='card' style='max-width:500px'>
-            <div class='warning-box'>
-                <p><b>⚠️ LƯU Ý QUAN TRỌNG:</b></p>
-                <p>- Vui lòng chuyển khoản <b>ĐÚNG SỐ TIỀN: {amount:,.0f} VNĐ</b>.</p>
-                <p>- Ghi đúng nội dung: <b>{note}</b></p>
-                <p>- Sau khi chuyển khoản thành công, hãy nhắn tin qua Zalo: <b>0775531924</b> kèm theo <b>Mã giao dịch ({code})</b> và <b>Tên đăng nhập</b> để được duyệt tiền nhanh nhất.</p>
-            </div>
+        if method == 'bank':
+            code = str(random.randint(0, 999999)).zfill(6)
+            note = f"NAP {code} {session['uname']}"
+            with get_db() as c:
+                c.execute("INSERT INTO deposits (user_id, amount, code, note) VALUES (?, ?, ?, ?)", (session['uid'], amount, code, note))
             
-            <div style='background:#1e293b;padding:16px;border-radius:8px;text-align:center;'>
-                <p style='color:#94a3b8;margin-bottom:8px'>Mã giao dịch của bạn:</p>
-                <p style='color:#3b82f6;font-size:24px;font-weight:bold;margin-bottom:16px'>{code}</p>
-                
-                <p style='color:#94a3b8;margin-bottom:8px'>Quét mã QR để chuyển khoản:</p>
-                <img src='{qr}' style='max-width:100%;border-radius:8px;border:2px solid #3b82f6'>
-                
-                <p style='margin-top:16px;'><a href='/user' style='color:#60a5fa;text-decoration:none'>Quay lại trang chủ</a></p>
+            qr = f"/static/uploads/{qr_image}" 
+            
+            html = f"""
+            <h2>Nạp tiền qua Ngân hàng</h2>
+            <div class='card' style='max-width:500px'>
+                <div class='warning-box'>
+                    <p><b>⚠️ LƯU Ý QUAN TRỌNG:</b></p>
+                    <p>- Vui lòng chuyển khoản <b>ĐÚNG SỐ TIỀN: {amount:,.0f} VNĐ</b>.</p>
+                    <p>- Ghi đúng nội dung: <b>{note}</b></p>
+                    <p>- Sau khi chuyển khoản, nhắn Zalo: <b>0775531924</b> kèm <b>Mã ({code})</b> để duyệt.</p>
+                </div>
+                <div style='background:#1e293b;padding:16px;border-radius:8px;text-align:center;'>
+                    <p style='color:#94a3b8;margin-bottom:8px'>Mã giao dịch:</p>
+                    <p style='color:#3b82f6;font-size:24px;font-weight:bold;margin-bottom:16px'>{code}</p>
+                    <img src='{qr}' style='max-width:100%;border-radius:8px;border:2px solid #3b82f6'>
+                    <p style='margin-top:16px;'><a href='/user' style='color:#60a5fa;text-decoration:none'>Quay lại</a></p>
+                </div>
             </div>
-        </div>
-        """
-        return render_page(html)
-        
-    return render_page("""
+            """
+            return render_page(html)
+            
+        elif method == 'card':
+            telco = request.form.get('telco')
+            code = request.form.get('code')
+            serial = request.form.get('serial')
+            
+            with get_db() as c:
+                c.execute("INSERT INTO cards (user_id, amount, telco, code, serial) VALUES (?, ?, ?, ?, ?)", 
+                          (session['uid'], amount, telco, code, serial))
+                
+            html = f"""
+            <h2>Gửi thẻ thành công!</h2>
+            <div class='card' style='max-width:500px;text-align:center;'>
+                <p style='color:#10b981;font-size:18px;font-weight:bold;margin-bottom:10px'>Đã gửi thẻ {telco.upper()} - {amount:,.0f}đ</p>
+                <div class='warning-box'>
+                    <p>Thẻ của bạn đang ở trạng thái <b>Chờ duyệt</b>.</p>
+                    <p>Vui lòng chờ từ <b>30 phút đến 1 tiếng</b> để Admin kiểm tra và cộng tiền (sau khi trừ chiết khấu 20%).</p>
+                </div>
+                <p style='margin-top:20px;'><a href='/user' style='color:#fff;background:#3b82f6;padding:10px 20px;border-radius:8px;text-decoration:none'>Quay lại trang chủ</a></p>
+            </div>
+            """
+            return render_page(html)
+            
+    html = f"""
     <h2>Nạp tiền</h2>
-    <form method='post' class='card' style='max-width:400px'>
-        <label style='color:#94a3b8;font-size:14px;'>Số tiền muốn nạp (VNĐ):</label>
-        <input name='amount' type='number' min='10000' placeholder='VD: 50000' required>
-        <button style='margin-top:12px'>Tạo mã QR nạp tiền</button>
-    </form>
-    """)
+    <div class='tabs'>
+        <a href='/deposit?tab=bank' class='{"active" if tab=="bank" else ""}'>Ngân hàng (QR)</a>
+        <a href='/deposit?tab=card' class='{"active" if tab=="card" else ""}'>Thẻ cào</a>
+    </div>
+    """
+    
+    if tab == 'bank':
+        html += """
+        <form method='post' class='card' style='max-width:400px'>
+            <input type='hidden' name='method' value='bank'>
+            <label style='color:#94a3b8;font-size:14px;'>Số tiền muốn nạp (VNĐ):</label>
+            <input name='amount' type='number' min='10000' placeholder='VD: 50000' required>
+            <button style='margin-top:12px'>Tạo mã QR nạp tiền</button>
+        </form>
+        """
+    else:
+        html += """
+        <form method='post' class='card' style='max-width:400px'>
+            <input type='hidden' name='method' value='card'>
+            <div class='warning-box' style='font-size:12px;padding:10px;'>
+                <p><b>Lưu ý:</b> Thẻ cào sẽ bị trừ 20% chiết khấu. Thời gian duyệt từ 30 phút - 1 tiếng.</p>
+            </div>
+            <label style='color:#94a3b8;font-size:14px;'>Chọn nhà mạng:</label>
+            <select name='telco'>
+                <option value='viettel'>Viettel</option>
+                <option value='mobifone'>Mobifone</option>
+                <option value='vinaphone'>Vinaphone</option>
+            </select>
+            <label style='color:#94a3b8;font-size:14px;'>Chọn mệnh giá:</label>
+            <select name='amount'>
+                <option value='10000'>10.000đ</option>
+                <option value='20000'>20.000đ</option>
+                <option value='50000'>50.000đ</option>
+                <option value='100000'>100.000đ</option>
+                <option value='200000'>200.000đ</option>
+                <option value='500000'>500.000đ</option>
+            </select>
+            <input name='code' placeholder='Nhập mã thẻ' required>
+            <input name='serial' placeholder='Nhập số serial' required>
+            <button style='margin-top:12px;background:#10b981;'>Gửi thẻ</button>
+        </form>
+        """
+    return render_page(html)
+
+@app.route('/history')
+@login_required
+def history():
+    with get_db() as c:
+        deposits = c.execute("SELECT * FROM deposits WHERE user_id=? ORDER BY id DESC", (session['uid'],)).fetchall()
+        cards = c.execute("SELECT * FROM cards WHERE user_id=? ORDER BY id DESC", (session['uid'],)).fetchall()
+        purchases = c.execute("SELECT p.*, pr.name FROM purchases p JOIN products pr ON p.product_id=pr.id WHERE p.user_id=? ORDER BY p.id DESC", (session['uid'],)).fetchall()
+    
+    html = "<h2>Lịch sử giao dịch</h2>"
+    
+    html += "<h3>Lịch sử mua hàng</h3>"
+    if purchases:
+        html += "<table><thead><tr><th>Sản phẩm</th><th>Giá</th><th>Thời gian</th></tr></thead><tbody>"
+        for p in purchases:
+            html += f"<tr><td data-label='Sản phẩm'>{p['name']}</td><td data-label='Giá'>{p['price']:,.0f}đ</td><td data-label='Thời gian'>{p['created_at']}</td></tr>"
+        html += "</tbody></table>"
+    else: html += "<p style='color:#64748b'>Chưa có giao dịch mua hàng.</p>"
+    
+    html += "<h3>Lịch sử nạp ngân hàng</h3>"
+    if deposits:
+        html += "<table><thead><tr><th>Mã GD</th><th>Số tiền</th><th>Trạng thái</th><th>Thời gian</th></tr></thead><tbody>"
+        for d in deposits:
+            status_color = "#10b981" if d['status']=='approved' else ("#ef4444" if d['status']=='rejected' else "#f59e0b")
+            html += f"<tr><td data-label='Mã GD'>{d['code']}</td><td data-label='Số tiền'>{d['amount']:,.0f}đ</td><td data-label='Trạng thái' style='color:{status_color}'>{d['status']}</td><td data-label='Thời gian'>{d['created_at']}</td></tr>"
+        html += "</tbody></table>"
+    else: html += "<p style='color:#64748b'>Chưa có giao dịch nạp ngân hàng.</p>"
+    
+    html += "<h3>Lịch sử nạp thẻ cào</h3>"
+    if cards:
+        html += "<table><thead><tr><th>Nhà mạng</th><th>Mệnh giá</th><th>Trạng thái</th><th>Thời gian</th></tr></thead><tbody>"
+        for c in cards:
+            status_color = "#10b981" if c['status']=='success' else ("#ef4444" if c['status']=='rejected' else "#f59e0b")
+            html += f"<tr><td data-label='Nhà mạng'>{c['telco'].upper()}</td><td data-label='Mệnh giá'>{c['amount']:,.0f}đ</td><td data-label='Trạng thái' style='color:{status_color}'>{c['status']}</td><td data-label='Thời gian'>{c['created_at']}</td></tr>"
+        html += "</tbody></table>"
+    else: html += "<p style='color:#64748b'>Chưa có giao dịch nạp thẻ cào.</p>"
+    
+    return render_page(html)
 
 @app.route('/tools')
 @app.route('/tuts')
@@ -352,10 +477,29 @@ def show_products():
     kind = 'tool' if 'tools' in request.path else 'tut'
     with get_db() as c:
         items = c.execute("SELECT * FROM products WHERE kind=?", (kind,)).fetchall()
+        u = c.execute("SELECT * FROM users WHERE id=?", (session['uid'],)).fetchone()
+    
+    balance = u['balance'] if u['role'] != 'admin' else 999999999
+    
     html = f"<h2>Danh sách {kind.upper()}</h2><div class='grid'>"
     if not items: html += "<p style='color:#64748b'>Chưa có sản phẩm nào.</p>"
+    
     for t in items:
         img_src = f"/static/uploads/{t['image']}" if t['image'] else "https://via.placeholder.com/300x150/1f2937/60a5fa?text=No+Image"
+        
+        if balance >= t['price']:
+            btn_mua = f"""
+            <form method='post' action='/buy/{t['id']}' style='flex:1;margin:0' onsubmit="return confirm('Bạn có chắc chắn muốn mua {t['name']} với giá {t['price']:,.0f} VNĐ?');">
+                <button style='width:100%'>Mua ngay</button>
+            </form>
+            """
+        else:
+            btn_mua = f"""
+            <a href='/product/{t['id']}' style='flex:1;text-decoration:none'>
+                <button style='width:100%;background:#ef4444'>Mua ngay</button>
+            </a>
+            """
+            
         html += f"""
         <div class='card' style='justify-content:space-between'>
             <img src='{img_src}' class='product-img'>
@@ -367,7 +511,7 @@ def show_products():
                 <p style='font-weight:700;color:#10b981;margin:0;font-size:16px'>{t['price']:,.0f} VNĐ</p>
                 <div style='display:flex;gap:8px;'>
                     <a href='/product/{t['id']}' style='flex:1;text-decoration:none'><button style='background:#1f2937;color:#fff;width:100%'>Chi tiết</button></a>
-                    <form method='post' action='/buy/{t['id']}' style='flex:1;margin:0'><button style='width:100%'>Mua ngay</button></form>
+                    {btn_mua}
                 </div>
             </div>
         </div>
@@ -380,9 +524,9 @@ def show_products():
 def product_detail(pid):
     with get_db() as c:
         p = c.execute("SELECT * FROM products WHERE id=?", (pid,)).fetchone()
-        if not p:
-            return redirect('/tools')
+        if not p: return redirect('/tools')
         purchased = c.execute("SELECT * FROM purchases WHERE user_id=? AND product_id=?", (session['uid'], pid)).fetchone()
+        u = c.execute("SELECT * FROM users WHERE id=?", (session['uid'],)).fetchone()
     
     img_src = f"/static/uploads/{p['image']}" if p['image'] else "https://via.placeholder.com/600x400/1f2937/60a5fa?text=No+Image"
     
@@ -390,7 +534,6 @@ def product_detail(pid):
     <div style='margin-bottom:20px;'>
         <a href='/{p['kind']}s' style='color:#60a5fa;text-decoration:none;font-size:14px;'>&larr; Quay lại danh sách</a>
     </div>
-    
     <div class='card' style='flex-direction:row;gap:24px;flex-wrap:wrap;'>
         <div style='flex:1;min-width:300px;'>
             <img src='{img_src}' style='width:100%;border-radius:12px;object-fit:cover;border:1px solid #1f2937;'>
@@ -411,23 +554,33 @@ def product_detail(pid):
                 </p>
             </div>
     """
+    
     if purchased:
         result_text = p['result'].replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
         html += f"""
             <div style='margin-top:8px;'>
                 <h3 style='margin:0 0 8px 0;font-size:16px;color:#10b981;'>Kết quả của bạn:</h3>
-                <div class='result-box'>
-                    {p['result']}
-                    <button class='btn-copy' onclick="copyText(this, '{result_text}')">Sao chép</button>
-                </div>
+                <button class='btn-copy' onclick="copyText(this, '{result_text}')">Sao chép kết quả</button>
+                <div class='result-box'>{p['result']}</div>
             </div>
         """
     else:
-        html += f"""
-            <form method='post' action='/buy/{p['id']}'>
-                <button style='width:100%;padding:16px;font-size:16px;margin-top:8px;'>Mua ngay</button>
-            </form>
-        """
+        if u['balance'] >= p['price'] or u['role'] == 'admin':
+            html += f"""
+                <form method='post' action='/buy/{p['id']}' onsubmit="return confirm('Bạn có chắc chắn muốn mua {p['name']} với giá {p['price']:,.0f} VNĐ?');">
+                    <button style='width:100%;padding:16px;font-size:16px;margin-top:8px;'>Mua ngay</button>
+                </form>
+            """
+        else:
+            html += f"""
+                <div style='background:#7f1d1d;padding:20px;border-radius:8px;text-align:center;'>
+                    <p style='color:#fca5a5;font-weight:bold;margin-bottom:16px;'>Bạn không đủ tiền để mua sản phẩm này!</p>
+                    <div style='display:flex;gap:12px;justify-content:center;'>
+                        <a href='/product/{p['id']}'><button style='background:#374151;color:#fff'>OK</button></a>
+                        <a href='/deposit'><button style='background:#3b82f6;color:#fff'>Nạp tiền</button></a>
+                    </div>
+                </div>
+            """
     html += "</div></div>"
     return render_page(html)
 
@@ -437,11 +590,23 @@ def buy(pid):
     with get_db() as c:
         p = c.execute("SELECT * FROM products WHERE id=?", (pid,)).fetchone()
         u = c.execute("SELECT * FROM users WHERE id=?", (session['uid'],)).fetchone()
+        
         if u['role'] == 'admin' or u['balance'] >= p['price']:
             if u['role'] != 'admin':
                 c.execute("UPDATE users SET balance = balance - ? WHERE id=?", (p['price'], u['id']))
             c.execute("INSERT INTO purchases (user_id, product_id, price) VALUES (?, ?, ?)", (u['id'], pid, p['price']))
-    return redirect(f'/product/{pid}')
+            return redirect(f'/product/{pid}')
+        else:
+            return render_page(f"""
+                <div class='auth-box'>
+                    <h2 style='color:#ef4444;margin-bottom:16px'>Chưa đủ tiền</h2>
+                    <p style='text-align:center;margin-bottom:20px;'>Tài khoản của bạn không đủ để mua sản phẩm này.</p>
+                    <div style='display:flex;gap:12px;justify-content:center;'>
+                        <a href='/product/{pid}'><button style='background:#374151;color:#fff;width:auto;padding:10px 20px'>OK</button></a>
+                        <a href='/deposit'><button style='width:auto;padding:10px 20px'>Nạp tiền</button></a>
+                    </div>
+                </div>
+            """)
 
 # --- ROUTES ADMIN ---
 @app.route('/admin', methods=['GET', 'POST'])
@@ -472,14 +637,14 @@ def admin_home():
         return redirect('/admin')
     
     with get_db() as c:
-        users = c.execute("SELECT * FROM users WHERE role='user'").fetchall()
         prods = c.execute("SELECT * FROM products").fetchall()
         deps = c.execute("SELECT d.*, u.username FROM deposits d JOIN users u ON u.id=d.user_id WHERE status='pending'").fetchall()
+        cards = c.execute("SELECT c.*, u.username FROM cards c JOIN users u ON u.id=c.user_id WHERE status='pending'").fetchall()
         qr_row = c.execute("SELECT value FROM settings WHERE key='qr_image'").fetchone()
         current_qr = qr_row['value'] if qr_row else ''
     
     html = "<div>"
-    html += "<h2>Bảng điều khiển quản trị</h2>"
+    html += "<h2>Quản lý hệ thống</h2>"
     
     html += f"""
     <h3>Cấu hình thanh toán (QR)</h3>
@@ -512,7 +677,7 @@ def admin_home():
     </form>
     """
     
-    html += "<h3>Duyệt nạp tiền</h3>"
+    html += "<h3>Duyệt nạp Ngân hàng</h3>"
     if deps:
         html += "<table><thead><tr><th>ID</th><th>Người dùng</th><th>Số tiền</th><th>Nội dung CK</th><th>Hành động</th></tr></thead><tbody>"
         for d in deps:
@@ -520,6 +685,31 @@ def admin_home():
         html += "</tbody></table>"
     else:
         html += "<p class='ok'>Không có lệnh nạp nào đang chờ.</p>"
+        
+    html += "<h3>Duyệt thẻ cào</h3>"
+    if cards:
+        html += "<table><thead><tr><th>Nhà mạng</th><th>Mệnh giá</th><th>Mã thẻ</th><th>Serial</th><th>Người dùng</th><th>Hành động</th></tr></thead><tbody>"
+        for c in cards:
+            html += f"""
+            <tr>
+                <td data-label='Nhà mạng'>{c['telco'].upper()}</td>
+                <td data-label='Mệnh giá'>{c['amount']:,.0f}đ</td>
+                <td data-label='Mã thẻ'>{c['code']}</td>
+                <td data-label='Serial'>{c['serial']}</td>
+                <td data-label='Người dùng'>{c['username']}</td>
+                <td data-label='Hành động'>
+                    <form method='post' action='/admin/card/{c['id']}/ok' style='display:inline'>
+                        <button style='padding:6px 12px;font-size:12px;background:#10b981'>Duyệt</button>
+                    </form>
+                    <form method='post' action='/admin/card/{c['id']}/reject' style='display:inline'>
+                        <button style='padding:6px 12px;font-size:12px;background:#ef4444'>Từ chối</button>
+                    </form>
+                </td>
+            </tr>
+            """
+        html += "</tbody></table>"
+    else:
+        html += "<p class='ok'>Không có thẻ cào nào đang chờ.</p>"
     
     html += "<h3>Quản lý sản phẩm</h3>"
     if prods:
@@ -532,15 +722,6 @@ def admin_home():
         html += "</tbody></table>"
     else:
         html += "<p>Chưa có sản phẩm nào.</p>"
-    
-    html += "<h3>Quản lý người dùng</h3>"
-    if users:
-        html += "<table><thead><tr><th>Tên đăng nhập</th><th>Số dư</th><th>Cộng tiền</th></tr></thead><tbody>"
-        for u in users:
-            html += f"<tr><td data-label='Tên'>{u['username']}</td><td data-label='Số dư'>{u['balance']:,.0f}đ</td><td data-label='Cộng tiền'><form method='post' action='/admin/addmoney/{u['id']}' style='display:flex;gap:8px;margin:0'><input name='amt' type='number' placeholder='Nhập số tiền' style='padding:6px' required><button style='padding:6px 12px;font-size:12px'>Cộng</button></form></td></tr>"
-        html += "</tbody></table>"
-    else:
-        html += "<p>Chưa có người dùng nào.</p>"
     
     html += "</div>"
     return render_page(html)
@@ -555,6 +736,21 @@ def dep_ok(did):
             c.execute("UPDATE deposits SET status='approved' WHERE id=?", (did,))
     return redirect('/admin')
 
+@app.route('/admin/card/<int:cid>/<action>', methods=['POST'])
+@admin_required
+def card_action(cid, action):
+    with get_db() as c:
+        card = c.execute("SELECT * FROM cards WHERE id=? AND status='pending'", (cid,)).fetchone()
+        if card:
+            if action == 'ok':
+                chiet_khau = 0.20
+                thuc_nhan = card['amount'] * (1 - chiet_khau)
+                c.execute("UPDATE users SET balance = balance + ? WHERE id=?", (thuc_nhan, card['user_id']))
+                c.execute("UPDATE cards SET status='success' WHERE id=?", (cid,))
+            elif action == 'reject':
+                c.execute("UPDATE cards SET status='rejected' WHERE id=?", (cid,))
+    return redirect('/admin')
+
 @app.route('/admin/del/<int:pid>', methods=['POST'])
 @admin_required
 def del_prod(pid):
@@ -567,13 +763,69 @@ def del_prod(pid):
         c.execute("DELETE FROM products WHERE id=?", (pid,))
     return redirect('/admin')
 
+# --- ROUTES QUAN LY USER ---
+@app.route('/admin_users')
+@admin_required
+def admin_users():
+    search = request.args.get('search', '')
+    with get_db() as c:
+        if search:
+            users = c.execute("SELECT * FROM users WHERE username LIKE ? AND role='user'", ('%'+search+'%',)).fetchall()
+        else:
+            users = c.execute("SELECT * FROM users WHERE role='user'").fetchall()
+    
+    html = "<h2>Quản lý người dùng</h2>"
+    
+    html += f"""
+    <form method='get' action='/admin_users' class='card' style='flex-direction:row;gap:12px;'>
+        <input name='search' placeholder='Tìm tên người dùng...' value='{search}' style='flex:1'>
+        <button type='submit' style='width:auto;padding:0 24px'>Tìm kiếm</button>
+    </form>
+    """
+    
+    if users:
+        html += "<table><thead><tr><th>Tên đăng nhập</th><th>Số dư</th><th>Thao tác</th></tr></thead><tbody>"
+        for u in users:
+            html += f"""
+            <tr>
+                <td data-label='Tên'>{u['username']}</td>
+                <td data-label='Số dư'>{u['balance']:,.0f}đ</td>
+                <td data-label='Thao tác'>
+                    <div style='display:flex;gap:8px;justify-content:flex-end'>
+                        <form method='post' action='/admin/addmoney/{u['id']}' style='display:flex;gap:8px;margin:0'>
+                            <input name='amt' type='number' placeholder='Nhập số tiền' style='padding:6px' required>
+                            <button style='padding:6px 12px;font-size:12px;background:#10b981'>Cộng</button>
+                        </form>
+                        <form method='post' action='/admin/deluser/{u['id']}' style='margin:0' onsubmit="return confirm('Bạn có chắc muốn xóa user này?');">
+                            <button style='padding:6px 12px;font-size:12px;background:#ef4444'>Xóa</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            """
+        html += "</tbody></table>"
+    else:
+        html += "<p style='color:#94a3b8'>Không tìm thấy người dùng nào.</p>"
+        
+    return render_page(html)
+
 @app.route('/admin/addmoney/<int:uid>', methods=['POST'])
 @admin_required
 def add_money(uid):
     amt = float(request.form.get('amt', 0))
     with get_db() as c:
         c.execute("UPDATE users SET balance = balance + ? WHERE id=?", (amt, uid))
-    return redirect('/admin')
+    return redirect('/admin_users')
+
+@app.route('/admin/deluser/<int:uid>', methods=['POST'])
+@admin_required
+def del_user(uid):
+    with get_db() as c:
+        c.execute("DELETE FROM users WHERE id=?", (uid,))
+        c.execute("DELETE FROM purchases WHERE user_id=?", (uid,))
+        c.execute("DELETE FROM deposits WHERE user_id=?", (uid,))
+        c.execute("DELETE FROM cards WHERE user_id=?", (uid,))
+    return redirect('/admin_users')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
