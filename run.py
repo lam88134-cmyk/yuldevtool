@@ -185,16 +185,28 @@ function toggleMenu() {
     document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('overlay').classList.toggle('open');
 }
-function copyText(btn, text) {
-    navigator.clipboard.writeText(text).then(() => {
-        let oldText = btn.innerText;
-        btn.innerText = "Đã chép!";
-        btn.style.background = "#2563eb";
-        setTimeout(() => {
-            btn.innerText = oldText;
-            btn.style.background = "#10b981";
-        }, 2000);
-    }).catch(err => { alert("Lỗi khi sao chép!"); });
+// Ham copy chuan cho ca PC va Mobile
+function copyText(btn, inputId) {
+    var copyText = document.getElementById(inputId);
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); 
+    
+    try {
+        var successful = document.execCommand('copy');
+        if (successful) {
+            let oldText = btn.innerText;
+            btn.innerText = "✅ Đã sao chép!";
+            btn.style.background = "#059669";
+            setTimeout(() => {
+                btn.innerText = oldText;
+                btn.style.background = "#10b981";
+            }, 2000);
+        } else {
+            alert('Trình duyệt không hỗ trợ sao chép tự động!');
+        }
+    } catch (err) {
+        alert('Lỗi khi sao chép!');
+    }
 }
 function togglePassword(inputId, icon) {
     var x = document.getElementById(inputId);
@@ -310,12 +322,13 @@ def user_home():
         for p in purchases:
             prod = pmap.get(p['product_id'])
             if prod: 
-                result_text = prod['result'].replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
+                input_id = f"res_{p['product_id']}"
                 html += f"""
                 <tr>
                     <td data-label='Tên sản phẩm'><b>{prod['name']}</b></td>
                     <td data-label='Kết quả'>
-                        <button class='btn-copy' onclick="copyText(this, '{result_text}')">Sao chép kết quả</button>
+                        <textarea id='{input_id}' style='position:absolute;left:-9999px'>{prod['result']}</textarea>
+                        <button class='btn-copy' onclick="copyText(this, '{input_id}')">Sao chép kết quả</button>
                         <div class='result-box'>{prod['result']}</div>
                     </td>
                 </tr>
@@ -556,11 +569,12 @@ def product_detail(pid):
     """
     
     if purchased:
-        result_text = p['result'].replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
+        input_id = f"res_detail_{p['id']}"
         html += f"""
             <div style='margin-top:8px;'>
                 <h3 style='margin:0 0 8px 0;font-size:16px;color:#10b981;'>Kết quả của bạn:</h3>
-                <button class='btn-copy' onclick="copyText(this, '{result_text}')">Sao chép kết quả</button>
+                <textarea id='{input_id}' style='position:absolute;left:-9999px'>{p['result']}</textarea>
+                <button class='btn-copy' onclick="copyText(this, '{input_id}')">Sao chép kết quả</button>
                 <div class='result-box'>{p['result']}</div>
             </div>
         """
